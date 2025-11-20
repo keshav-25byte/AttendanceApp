@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 export default function ExtraClassScreen({ navigation }) {
@@ -140,12 +140,11 @@ export default function ExtraClassScreen({ navigation }) {
             selectedValue={selectedCourse}
             onValueChange={(itemValue) => setSelectedCourse(itemValue)}
             style={styles.picker}
-            dropdownIconColor="#334155"
             mode="dropdown"
           >
             <Picker.Item label="Select a course..." value={null} color="#9ca3af" />
             {courses.map(course => (
-              <Picker.Item key={course.id} label={`${course.name} (${course.course_code})`} value={course.id} color="#1e293b" />
+              <Picker.Item key={course.id} label={`${course.name} (${course.course_code})`} value={course.id}  />
 
             ))}
           </Picker>
