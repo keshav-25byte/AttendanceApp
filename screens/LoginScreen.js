@@ -44,7 +44,7 @@ export default function LoginScreen({ navigation }) {
       }
 
       if (profile?.role === 'teacher') {
-        navigation.replace('Dashboard'); // Success
+        navigation.replace('ClassList'); // Success
       } else {
         await supabase.auth.signOut();
         throw new Error('Access Denied: You are not a teacher.');
