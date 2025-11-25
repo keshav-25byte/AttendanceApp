@@ -14,7 +14,7 @@
         "NSCameraUsageDescription": "$(PRODUCT_NAME) needs access to your camera to track attendance.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.anonymous.AttendanceApp"
+      "bundleIdentifier": "com.avinya.SauAttendanceApp"
     },
     "android": {
       "adaptiveIcon": {
