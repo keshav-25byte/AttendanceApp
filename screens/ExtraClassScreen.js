@@ -41,7 +41,7 @@ export default function ExtraClassScreen({ navigation }) {
       
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
-        .select('id, name, course_code')
+        .select('id, name, course_code, college_id')
         .eq('college_id', collegeId)
         .order('name');
       if (courseError) throw courseError;

@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system';
 import { supabase } from '../lib/supabase';
 
 // REPLACE WITH YOUR PUBLIC API URL
-const FACE_API_WS_URL = 'ws://YOUR_PUBLIC_IP_OR_DOMAIN:5000';
+const FACE_API_WS_URL = 'https://ca.avinya.live';
 
 export default function CameraScreen({ route, navigation }) {
   const { lecture } = route.params; // Get the selected lecture
@@ -73,8 +73,8 @@ export default function CameraScreen({ route, navigation }) {
     };
 
     ws.current.onerror = (e) => {
-      console.log("WS Error:", e.message);
-      setStatus('Connection Error');
+      console.log("WS Error:");
+      setStatus(e.message);
       setIsScanning(false);
     };
   };
