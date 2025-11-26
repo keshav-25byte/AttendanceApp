@@ -17,6 +17,9 @@ export default function CameraScreen({ route, navigation }) {
   const camera = useRef(null);
   const ws = useRef(null);
 
+  
+  const [errorLog, setErrorLog] = useState(''); 
+
   // --- NEW: State for Request #3 ---
   const [markedStudents, setMarkedStudents] = useState([]);
 
@@ -73,8 +76,9 @@ export default function CameraScreen({ route, navigation }) {
     };
 
     ws.current.onerror = (e) => {
-      console.log("WS Error:");
-      setStatus(e.message);
+      console.log("WS Error:", e.message);
+      setStatus('Connection Error');
+      setErrorLog(`WebSocket Error: ${e.message}`); // Add this
       setIsScanning(false);
     };
   };
@@ -101,6 +105,7 @@ export default function CameraScreen({ route, navigation }) {
         await FileSystem.deleteAsync(photo.path, { idempotent: true });
       } catch (err) {
         console.log("Capture error:", err);
+        setErrorLog(`Camera/FS Error: ${err.message}`);
       }
     }
     setTimeout(() => { if (isScanning) captureLoop(); }, 600);
@@ -148,6 +153,17 @@ export default function CameraScreen({ route, navigation }) {
       />
       {/* ------------------------------------------- */}
 
+      {/* --- ERROR LOG UI --- */}
+      {errorLog ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Debug Log:</Text>
+          <Text style={styles.errorText}>{errorLog}</Text>
+          <TouchableOpacity onPress={() => setErrorLog('')}>
+            <Text style={styles.clearText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <View style={styles.footer}>
          <TouchableOpacity style={[styles.button, styles.stopBtn]} onPress={() => navigation.goBack()}>
            <Text style={styles.btnText}>Stop & Go Back</Text>
@@ -193,4 +209,28 @@ const styles = StyleSheet.create({
   button: { padding: 16, borderRadius: 12, alignItems: 'center' },
   stopBtn: { backgroundColor: '#ef4444' },
   btnText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+
+  errorContainer: {
+    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'red',
+    margin: 20,
+    padding: 10,
+    borderRadius: 8,
+  },
+  errorTitle: {
+    color: 'red',
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+  },
+  clearText: {
+    color: '#334155',
+    fontSize: 12,
+    marginTop: 8,
+    textDecorationLine: 'underline',
+  },
 }); 
