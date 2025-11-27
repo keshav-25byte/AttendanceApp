@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system';
 import { supabase } from '../lib/supabase';
 
 // REPLACE WITH YOUR PUBLIC API URL
-const FACE_API_WS_URL = 'https://ca.avinya.live';
+const FACE_API_WS_URL = 'wss://ca.avinya.live';
 
 export default function CameraScreen({ route, navigation }) {
   const { lecture } = route.params; // Get the selected lecture
