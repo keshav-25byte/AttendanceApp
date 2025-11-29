@@ -11,8 +11,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "$(PRODUCT_NAME) needs access to your camera to track attendance."
-      }
+        "NSCameraUsageDescription": "$(PRODUCT_NAME) needs access to your camera to track attendance.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.avinya.SauAttendanceApp"
     },
     "android": {
       "adaptiveIcon": {

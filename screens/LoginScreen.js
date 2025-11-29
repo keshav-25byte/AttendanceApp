@@ -6,11 +6,9 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorLog, setErrorLog] = useState(''); // <--- NEW: State for error message
 
   async function handleLogin() {
     setLoading(true);
-    setErrorLog(''); // <--- NEW: Clear old errors
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -19,19 +17,16 @@ export default function LoginScreen({ navigation }) {
       });
 
       if (error) {
-        // --- CHANGE 1: Give a user-friendly error for bad passwords ---
         if (error.message.includes("Invalid login credentials")) {
           throw new Error("Invalid email or password. Please try again.");
         }
-        // -----------------------------------------------------------
-        throw error; // Throw other errors to be caught
+        throw error;
       }
 
       if (!data.user) {
         throw new Error('Login failed: No user data returned.');
       }
 
-      // Check profile role
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
@@ -39,25 +34,22 @@ export default function LoginScreen({ navigation }) {
         .single();
       
       if (profileError) {
-        // This is a common failure point
         throw new Error(`Profile check failed: ${profileError.message}`);
       }
 
       if (profile?.role === 'teacher') {
-        navigation.replace('Dashboard'); // Success
+        navigation.replace('ClassList'); 
       } else {
         await supabase.auth.signOut();
         throw new Error('Access Denied: You are not a teacher.');
       }
 
     } catch (error) {
-      // <--- NEW: Show the full error on screen
       let userMessage = error.message;
       if (error.message.includes("Network request failed")) {
           userMessage = "Could not connect to the server. Please check your internet.";
       }
-      setErrorLog(error.message); // Keep the technical error in the debug log
-      Alert.alert('Login Failed', userMessage); // Show the user-friendly one
+      Alert.alert('Login Failed', userMessage);
     } finally {
       setLoading(false);
     }
@@ -72,8 +64,8 @@ export default function LoginScreen({ navigation }) {
       <Text style={styles.title}>SAU Attendance</Text>
       <TextInput
         style={styles.input}
-        placeholder="Enter your email" // <--- CHANGE 2: Updated placeholder
-        placeholderTextColor="#9ca3af" // <--- NEW: Set placeholder color
+        placeholder="Enter your email"
+        placeholderTextColor="#9ca3af"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -81,8 +73,8 @@ export default function LoginScreen({ navigation }) {
       />
       <TextInput
         style={styles.input}
-        placeholder="Enter your password" // <--- CHANGE 2: Updated placeholder
-        placeholderTextColor="#9ca3af" // <--- NEW: Set placeholder color
+        placeholder="Enter your password"
+        placeholderTextColor="#9ca3af"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -90,16 +82,6 @@ export default function LoginScreen({ navigation }) {
       <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
       </TouchableOpacity>
-
-      {/* --- NEW: VISIBLE ERROR LOG --- */}
-      {errorLog ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Debug Error:</Text>
-          <Text style={styles.errorLogText}>{errorLog}</Text>
-        </View>
-      ) : null}
-      {/* ----------------------------- */}
-
     </View>
   );
 }
@@ -115,34 +97,14 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     borderWidth: 1, 
     borderColor: '#ddd',
-    color: '#111827' // <--- CHANGE 3: Fixes invisible password dots
+    color: '#111827'
   },
   button: { backgroundColor: '#005CAB', padding: 15, borderRadius: 10, alignItems: 'center' },
   buttonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   logo: {
-    alignSelf: 'center', // <--- ADD THIS LINE
+    alignSelf: 'center',
     marginBottom: 20,
-    width: 100, // You can still style it
+    width: 100, 
     height: 100,
   },
-  // --- NEW STYLES FOR ERROR LOG ---
-  errorContainer: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#ffebe6',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ffc5b3'
-  },
-  errorTitle: {
-    color: '#a60000',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  errorLogText: {
-    color: '#a60000',
-    fontSize: 14,
-  },
-  // ------------------------------
 });
