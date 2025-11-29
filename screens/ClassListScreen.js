@@ -121,29 +121,25 @@ export default function ClassListScreen({ navigation }) {
         Groups: {item.schedule_groups.map(sg => sg.student_groups.group_name).join(', ')}
       </Text>
 
-      {/* --- MODIFIED LOGIC FOR BUTTONS --- */}
       <View style={styles.buttonRow}>
+        {/* Unified Action Button */}
         <TouchableOpacity 
-          style={[styles.actionButton, styles.cameraButton]} 
-          onPress={() => navigation.navigate('Camera', { lecture: item })}
+          style={[styles.actionButton, item.isSubmitted ? styles.manualButton : styles.cameraButton]} 
+          onPress={() => {
+              if (item.isSubmitted) {
+                  // If submitted, go to Manual Edit (triggered via password modal if needed)
+                  onManualEditPress(item); 
+              } else {
+                  // If not submitted, start Camera
+                  navigation.navigate('Camera', { lecture: item });
+              }
+          }}
         >
-          {/* Change text based on submission status */}
           <Text style={styles.actionButtonText}>
-            {item.isSubmitted ? 'Re-scan with Camera' : 'Start Camera'}
+            {item.isSubmitted ? 'Edit Attendance' : 'Start Camera'}
           </Text>
         </TouchableOpacity>
-        
-        {/* Conditionally render the Manual Edit button */}
-        {item.isSubmitted && (
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.manualButton]}
-            onPress={() => onManualEditPress(item)}
-          >
-            <Text style={styles.actionButtonText}>Manual Edit</Text>
-          </TouchableOpacity>
-        )}
       </View>
-      {/* --- END OF MODIFIED LOGIC --- */}
     </View>
   );
 
