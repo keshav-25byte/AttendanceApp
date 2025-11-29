@@ -44,10 +44,9 @@ export default function ClassListScreen({ navigation }) {
 
       if (error) throw error;
       
-      // Filter in JS to handle today's regular classes + all extra classes
-      const filteredData = data.filter(lec => lec.day_of_week === today || lec.is_extra_class);
+      // --- FIX: Only show classes (regular OR extra) if they are for TODAY ---
+      const filteredData = data.filter(lec => lec.day_of_week === today);
       
-      // --- NEW LOGIC: Check which classes are already submitted ---
       if (filteredData.length > 0) {
         const scheduleIds = filteredData.map(s => s.id);
         const todayStr = new Date().toISOString().split('T')[0];
@@ -69,7 +68,6 @@ export default function ClassListScreen({ navigation }) {
       } else {
         setLectures([]);
       }
-      // --- END OF NEW LOGIC ---
 
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -83,7 +81,6 @@ export default function ClassListScreen({ navigation }) {
     navigation.replace('Login');
   };
 
-  // --- Manual Edit Password Logic (Request #2) ---
   const onManualEditPress = (lecture) => {
     setSelectedLecture(lecture);
     setModalVisible(true);
@@ -95,7 +92,6 @@ export default function ClassListScreen({ navigation }) {
       return;
     }
 
-    // Re-authenticate user
     const { error } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: password,
@@ -104,13 +100,11 @@ export default function ClassListScreen({ navigation }) {
     if (error) {
       Alert.alert('Access Denied', 'Incorrect password.');
     } else {
-      // Success! Navigate to Manual Edit screen
       setModalVisible(false);
       setPassword('');
       navigation.navigate('ManualEdit', { lecture: selectedLecture });
     }
   };
-  // ----------------------------------------------
 
   const renderLectureItem = ({ item }) => (
     <View style={styles.card}>
@@ -122,15 +116,12 @@ export default function ClassListScreen({ navigation }) {
       </Text>
 
       <View style={styles.buttonRow}>
-        {/* Unified Action Button */}
         <TouchableOpacity 
           style={[styles.actionButton, item.isSubmitted ? styles.manualButton : styles.cameraButton]} 
           onPress={() => {
               if (item.isSubmitted) {
-                  // If submitted, go to Manual Edit (triggered via password modal if needed)
                   onManualEditPress(item); 
               } else {
-                  // If not submitted, start Camera
                   navigation.navigate('Camera', { lecture: item });
               }
           }}
@@ -162,7 +153,6 @@ export default function ClassListScreen({ navigation }) {
         onRefresh={fetchUserDataAndLectures}
       />
 
-      {/* --- Add Extra Class Button (Request #1) --- */}
       <TouchableOpacity 
         style={styles.fab} 
         onPress={() => navigation.navigate('ExtraClass')}
@@ -170,7 +160,6 @@ export default function ClassListScreen({ navigation }) {
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
-      {/* --- Password Modal (Request #2) --- */}
       <Modal isVisible={isModalVisible} onBackdropPress={() => setModalVisible(false)}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Password Required</Text>
@@ -210,7 +199,7 @@ const styles = StyleSheet.create({
   buttonRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, gap: 10 },
   actionButton: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   actionButtonText: { color: 'white', fontSize: 14, fontWeight: 'bold' },
-  cameraButton: { backgroundColor: '#005CAB' }, // Using your logo color
+  cameraButton: { backgroundColor: '#005CAB' }, 
   manualButton: { backgroundColor: '#f59e0b' },
   fab: {
     position: 'absolute', bottom: 30, right: 20, width: 60, height: 60,

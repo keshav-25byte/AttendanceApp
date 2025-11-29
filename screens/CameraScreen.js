@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { supabase } from '../lib/supabase'; // <--- 1. Import Supabase
+import { supabase } from '../lib/supabase';
 
 // REPLACE WITH YOUR REAL SERVER URL
 const FACE_API_WS_URL = 'wss://ca.avinya.live'; 
@@ -15,7 +15,7 @@ export default function CameraScreen({ route, navigation }) {
   const { hasPermission, requestPermission } = useCameraPermission();
   
   const [isScanning, setIsScanning] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); // <--- 2. Add submitting state
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('Idle');
   const [facing, setFacing] = useState('front');
   const device = useCameraDevice(facing);
@@ -27,20 +27,6 @@ export default function CameraScreen({ route, navigation }) {
 
   const [markedStudents, setMarkedStudents] = useState([]);
   const [faceBoxes, setFaceBoxes] = useState([]); 
-  const [logs, setLogs] = useState([]);
-  const [indicatorColor, setIndicatorColor] = useState('#94a3b8');
-
-  // ... (Keep existing addLog, useEffect, toggleCameraFacing) ...
-  const addLog = (message, type = 'info') => {
-    const timestamp = new Date().toLocaleTimeString().split(' ')[0];
-    const newLog = `[${timestamp}] ${type === 'error' ? '❌' : 'ℹ️'} ${message}`;
-    console.log(newLog);
-    setLogs(prev => [newLog, ...prev].slice(0, 50));
-    if (type === 'action') setIndicatorColor('#3b82f6'); 
-    if (type === 'wait') setIndicatorColor('#eab308');   
-    if (type === 'success') setIndicatorColor('#22c55e'); 
-    if (type === 'error') setIndicatorColor('#ef4444');   
-  };
 
   useEffect(() => {
     requestPermission();
@@ -52,12 +38,18 @@ export default function CameraScreen({ route, navigation }) {
     setFacing(current => (current === 'back' ? 'front' : 'back'));
   }
 
-  // ... (Keep startScanning, stopScanning, captureLoop, captureAndSend) ...
   const startScanning = async () => {
-    // ... existing logic ...
+    if (!hasPermission) {
+        const granted = await requestPermission();
+        if (!granted) return Alert.alert("Camera permission denied");
+    }
+
     const groupIds = lecture?.schedule_groups?.map(sg => sg?.student_groups?.id) || [];
+    
     setIsScanning(true);
     setStatus('Connecting...');
+    setMarkedStudents([]);
+
     ws.current = new WebSocket(`${FACE_API_WS_URL}/ws/start_attendance`);
 
     ws.current.onopen = () => {
@@ -68,14 +60,16 @@ export default function CameraScreen({ route, navigation }) {
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+        
         if (data.type === 'status' && data.message === 'ready') {
           setStatus('Scanning...');
           startCaptureInterval();
         }
+        
         if (data.type === 'frame_data' && data.boxes) {
             setFaceBoxes(data.boxes);
-            if(data.boxes.length > 0) setIndicatorColor('#22c55e'); 
         }
+
         if (data.type === 'match') {
           setStatus(`Found: ${data.student.name}`);
           setMarkedStudents(prevStudents => {
@@ -87,9 +81,15 @@ export default function CameraScreen({ route, navigation }) {
         }
       } catch (err) { }
     };
-    // ... existing error handlers ...
-    ws.current.onerror = (e) => { setStatus('Connection Error'); stopScanning(); };
-    ws.current.onclose = () => { stopScanning(); };
+
+    ws.current.onerror = (e) => {
+      setStatus('Connection Error');
+      stopScanning();
+    };
+    
+    ws.current.onclose = () => {
+        stopScanning();
+    };
   };
 
   const stopScanning = () => {
@@ -120,23 +120,21 @@ export default function CameraScreen({ route, navigation }) {
         ws.current.send(`data:image/jpeg;base64,${manipulatedImage.base64}`);
         await FileSystem.deleteAsync(photo.path, { idempotent: true });
     } catch (err) {
-        addLog(`Capture Error: ${err.message}`, 'error');
+        // Silent error handling for smoother UI
     } finally {
         isProcessing.current = false;
     }
   };
 
-  // 3. New Submit Function
   const handleSubmitAttendance = async () => {
     if (markedStudents.length === 0) return;
     
-    stopScanning(); // Stop camera while submitting
+    stopScanning(); 
     setIsSubmitting(true);
 
     try {
         const today = new Date().toISOString().split('T')[0];
         
-        // Prepare records: only mark found students as 'present'
         const records = markedStudents.map(student => ({
             student_id: student.id,
             date: today,
@@ -157,7 +155,6 @@ export default function CameraScreen({ route, navigation }) {
 
     } catch (error) {
         Alert.alert("Error", error.message);
-        // Restart scanning if failed? Optional.
     } finally {
         setIsSubmitting(false);
     }
@@ -183,11 +180,11 @@ export default function CameraScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* ... (Camera View & Log Container remain the same) ... */}
       <View style={styles.cameraContainer}>
         {device ? ( <Camera ref={camera} style={StyleSheet.absoluteFill} device={device} isActive={true} photo={true} /> ) : ( <Text>Loading...</Text> )}
         {renderFaceBoxes()}
         <View style={styles.overlay}><Text style={styles.overlayText}>{status}</Text></View>
+        <TouchableOpacity style={styles.flipBtn} onPress={toggleCameraFacing}><Text style={styles.flipText}>Flip</Text></TouchableOpacity>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}><Text style={styles.flipText}>{"<"} Back</Text></TouchableOpacity>
       </View>
 
@@ -207,9 +204,7 @@ export default function CameraScreen({ route, navigation }) {
         />
       </View>
 
-      {/* 4. Updated Footer with Two Buttons */}
       <View style={styles.footer}>
-         {/* Submit Button - Only visible if students are found */}
          {markedStudents.length > 0 && (
              <TouchableOpacity 
                 style={[styles.button, styles.submitBtn]} 
@@ -229,28 +224,24 @@ export default function CameraScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  // ... (keep existing styles)
   container: { flex: 1, backgroundColor: '#f8fafc' },
-  cameraContainer: { height: '45%', margin: 15, borderRadius: 15, overflow: 'hidden', backgroundColor: '#000', position: 'relative' },
+  cameraContainer: { height: '55%', margin: 15, borderRadius: 15, overflow: 'hidden', backgroundColor: '#000', position: 'relative' },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   overlay: { position: 'absolute', bottom: 15, left: 15, backgroundColor: 'rgba(0,0,0,0.7)', padding: 10, borderRadius: 25 },
-  overlayText: { color: 'white', fontWeight: 'bold' },
+  overlayText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
   boxLabel: { backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: 10, padding: 2, textAlign: 'center', position: 'absolute', bottom: -20, left: 0, right: 0 },
-  flipBtn: { position: 'absolute', top: 15, right: 15, padding: 10 },
+  flipBtn: { position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20 },
   backBtn: { position: 'absolute', top: 15, left: 15, backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20 },
   flipText: { color: 'white', fontWeight: 'bold' },
-  logContainer: { height: '5%', marginHorizontal: 15 }, // Reduced log size
   listContainer: { flex: 1, backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   listHeader: { padding: 15, borderBottomWidth: 1, borderColor: '#e2e8f0' },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
-  studentRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderColor: '#f1f5f9' },
+  studentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderColor: '#f1f5f9' },
   studentName: { fontSize: 16, color: '#166534', fontWeight: '500' },
   studentRoll: { fontSize: 14, color: '#64748b' },
-  
-  // Footer Styles
   footer: { padding: 20, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#e2e8f0' },
   button: { padding: 15, borderRadius: 10, alignItems: 'center' },
-  submitBtn: { backgroundColor: '#10b981' }, // Green for submit
-  stopBtn: { backgroundColor: '#ef4444' },    // Red for stop
+  submitBtn: { backgroundColor: '#10b981' }, 
+  stopBtn: { backgroundColor: '#ef4444' },    
   btnText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 });
