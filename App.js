@@ -8,12 +8,16 @@ import ExtraClassScreen from './screens/ExtraClassScreen';
 
 const Stack = createNativeStackNavigator();
 
+/**
+ * Main Application Entry Point.
+ * Sets up the Navigation Stack.
+ */
 export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator 
         screenOptions={{ 
-          headerShown: false 
+          headerShown: false // We use custom headers in each screen
         }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />

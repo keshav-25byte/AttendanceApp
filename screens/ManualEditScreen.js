@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
 
+/**
+ * Screen for manually marking or correcting attendance.
+ * Fetches all students belonging to the groups in the lecture,
+ * merges them with any existing attendance data for today,
+ * and allows toggling status (Present, Late, Absent).
+ */
 export default function ManualEditScreen({ route, navigation }) {
   const { lecture } = route.params;
-  const [students, setStudents] = useState([]); // { student, status }
+  const [students, setStudents] = useState([]); // Array of { student, status } objects
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -17,7 +23,7 @@ export default function ManualEditScreen({ route, navigation }) {
       setLoading(true);
       const groupIds = lecture.schedule_groups.map(sg => sg.student_groups.id);
 
-      // Get all students in those groups
+      // 1. Get all students that belong to the groups in this lecture
       const { data: studentsData, error: studentError } = await supabase
         .from('student_group_members')
         .select('students (*)')
@@ -25,10 +31,10 @@ export default function ManualEditScreen({ route, navigation }) {
 
       if (studentError) throw studentError;
 
-      // De-duplicate students
+      // 2. De-duplicate students (one student might be in multiple groups)
       const uniqueStudents = Array.from(new Map(studentsData.map(item => [item.students.id, item.students])).values());
 
-      // Get existing attendance for today
+      // 3. Get existing attendance records for these students for today
       const today = new Date().toISOString().split('T')[0];
       const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance')
@@ -38,11 +44,13 @@ export default function ManualEditScreen({ route, navigation }) {
       
       if (attendanceError) throw attendanceError;
 
+      // 4. Create a map for quick lookup of existing status
       const attendanceMap = new Map(attendanceData.map(a => [a.student_id, a.status]));
 
+      // 5. Merge student data with their status (default to 'absent' if no record)
       const studentList = uniqueStudents.map(student => ({
         student,
-        status: attendanceMap.get(student.id) || 'absent' // Default to absent
+        status: attendanceMap.get(student.id) || 'absent' 
       })).sort((a, b) => a.student.name.localeCompare(b.student.name));
       
       setStudents(studentList);
@@ -71,13 +79,14 @@ export default function ManualEditScreen({ route, navigation }) {
         student_id: item.student.id,
         date: today,
         status: item.status,
-        schedule_id: lecture.id, // Link to the schedule
+        schedule_id: lecture.id,
         marked_at: new Date().toISOString(),
       }));
 
+      // Upsert: Updates if record exists (based on Conflict), inserts if not.
       const { error } = await supabase
         .from('attendance')
-        .upsert(recordsToUpsert, { onConflict: 'student_id, date, schedule_id' }); // Use composite key
+        .upsert(recordsToUpsert, { onConflict: 'student_id, date, schedule_id' }); 
 
       if (error) throw error;
 

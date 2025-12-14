@@ -1,43 +1,43 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Dependencies
+/node_modules
+/.pnp
+/.pnp.js
 
-# dependencies
-node_modules/
+# Build artifacts
+/dist
+/web-build
+/coverage
+/build
+/out
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
+# Expo/React Native Specific
+/.expo/
+/expo-env.d.ts
+/app-example
+/tmp/
+/temp/
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# Environment Variables (Keep your secrets safe!)
+.env
+.env.local
+.env.development
+.env.production
+# NOTE: .env.example is generally safe to commit, but the actual .env file should be kept secret.
 
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
+# OS/IDE Artifacts
 .DS_Store
-*.pem
+Thumbs.db
+*.orig
+# Visual Studio Code settings (Optional - keep if you want to enforce editor settings for all users)
+.vscode/
 
-# local env files
-.env*.local
+# Android-specific build outputs
+android/build
+android/.gradle
+android/app/build
+android/app/.cxx
+# Keep the platform's own gitignore
+!android/.gitignore
 
-# typescript
-*.tsbuildinfo
-
-app-example
-
-# generated native folders
-/ios
-/android
+# iOS-specific build outputs
+ios/build

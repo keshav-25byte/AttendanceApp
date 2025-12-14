@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { View, Image, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../lib/supabase';
 
+/**
+ * Authentication Screen.
+ * Handles user login and validates that the user has a 'teacher' role.
+ */
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -11,6 +15,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
 
     try {
+      // 1. Authenticate with Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -27,6 +32,7 @@ export default function LoginScreen({ navigation }) {
         throw new Error('Login failed: No user data returned.');
       }
 
+      // 2. Check the user's role in the 'profiles' table
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
@@ -37,6 +43,7 @@ export default function LoginScreen({ navigation }) {
         throw new Error(`Profile check failed: ${profileError.message}`);
       }
 
+      // 3. Allow access only if role is 'teacher'
       if (profile?.role === 'teacher') {
         navigation.replace('ClassList'); 
       } else {

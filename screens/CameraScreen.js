@@ -5,10 +5,11 @@ import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../lib/supabase';
 
-
-const FACE_API_WS_URL = 'wss://ca.avinya.live'; 
-
+// Helper for screen dimensions
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// WebSocket URL from environment variables
+const FACE_API_WS_URL = process.env.EXPO_PUBLIC_FACE_API_WS_URL;
 
 export default function CameraScreen({ route, navigation }) {
   const { lecture } = route.params || {};
@@ -18,6 +19,8 @@ export default function CameraScreen({ route, navigation }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('Idle');
   const [facing, setFacing] = useState('front');
+  
+  // Camera & WebSocket refs
   const device = useCameraDevice(facing);
   const camera = useRef(null);
   const ws = useRef(null);
@@ -29,8 +32,18 @@ export default function CameraScreen({ route, navigation }) {
   const [faceBoxes, setFaceBoxes] = useState([]); 
 
   useEffect(() => {
-    requestPermission();
-    startScanning(); 
+    // Initialize permissions and start scanning on mount
+    const init = async () => {
+      const granted = await requestPermission();
+      if (granted) {
+        startScanning();
+      } else {
+        Alert.alert("Permission Required", "Camera permission is required to mark attendance.");
+        navigation.goBack();
+      }
+    };
+    init();
+
     return () => stopScanning();
   }, []);
 
@@ -39,11 +52,6 @@ export default function CameraScreen({ route, navigation }) {
   }
 
   const startScanning = async () => {
-    if (!hasPermission) {
-        const granted = await requestPermission();
-        if (!granted) return Alert.alert("Camera permission denied");
-    }
-
     const groupIds = lecture?.schedule_groups?.map(sg => sg?.student_groups?.id) || [];
     
     setIsScanning(true);
@@ -54,6 +62,7 @@ export default function CameraScreen({ route, navigation }) {
 
     ws.current.onopen = () => {
       setStatus('Connected');
+      // Send group IDs to initialize the session
       ws.current.send(JSON.stringify({ group_ids: groupIds }));
     };
 
@@ -61,29 +70,36 @@ export default function CameraScreen({ route, navigation }) {
       try {
         const data = JSON.parse(e.data);
         
+        // Backend is ready to receive frames
         if (data.type === 'status' && data.message === 'ready') {
           setStatus('Scanning...');
           startCaptureInterval();
         }
         
+        // Update bounding boxes for UI feedback
         if (data.type === 'frame_data' && data.boxes) {
             setFaceBoxes(data.boxes);
         }
 
+        // Student identified
         if (data.type === 'match') {
           setStatus(`Found: ${data.student.name}`);
           setMarkedStudents(prevStudents => {
+            // Avoid duplicates
             if (!prevStudents.find(s => s.id === data.student.id)) {
               return [data.student, ...prevStudents];
             }
             return prevStudents;
           });
         }
-      } catch (err) { }
+      } catch (err) {
+        console.error("Error parsing WebSocket message:", err);
+      }
     };
 
     ws.current.onerror = (e) => {
       setStatus('Connection Error');
+      console.error("WebSocket Error:", e);
       stopScanning();
     };
     
@@ -101,26 +117,33 @@ export default function CameraScreen({ route, navigation }) {
 
   const startCaptureInterval = () => {
       if (scanInterval.current) clearInterval(scanInterval.current);
+      // Capture frame every 500ms
       scanInterval.current = setInterval(captureAndSend, 500);
   };
 
   const captureAndSend = async () => {
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) return;
     if (!camera.current || !device) return;
-    if (isProcessing.current) return; 
+    if (isProcessing.current) return; // Prevent concurrent processing
 
     isProcessing.current = true;
     try {
         const photo = await camera.current.takePhoto({ enableShutterSound: false, flash: 'off' });
+        
+        // Resize and compress to optimize network usage
         const manipulatedImage = await ImageManipulator.manipulateAsync(
             photo.path,
             [{ resize: { width: 500 } }], 
             { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
         );
+
         ws.current.send(`data:image/jpeg;base64,${manipulatedImage.base64}`);
+        
+        // Clean up temporary file
         await FileSystem.deleteAsync(photo.path, { idempotent: true });
     } catch (err) {
-        // Silent error handling for smoother UI
+        // Log locally but keep UI smooth
+        console.log("Capture error:", err);
     } finally {
         isProcessing.current = false;
     }
@@ -181,7 +204,7 @@ export default function CameraScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.cameraContainer}>
-        {device ? ( <Camera ref={camera} style={StyleSheet.absoluteFill} device={device} isActive={true} photo={true} /> ) : ( <Text>Loading...</Text> )}
+        {device ? ( <Camera ref={camera} style={StyleSheet.absoluteFill} device={device} isActive={true} photo={true} /> ) : ( <Text>Loading Camera...</Text> )}
         {renderFaceBoxes()}
         <View style={styles.overlay}><Text style={styles.overlayText}>{status}</Text></View>
         <TouchableOpacity style={styles.flipBtn} onPress={toggleCameraFacing}><Text style={styles.flipText}>Flip</Text></TouchableOpacity>
@@ -226,7 +249,6 @@ export default function CameraScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   cameraContainer: { height: '55%', margin: 15, borderRadius: 15, overflow: 'hidden', backgroundColor: '#000', position: 'relative' },
-  centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   overlay: { position: 'absolute', bottom: 15, left: 15, backgroundColor: 'rgba(0,0,0,0.7)', padding: 10, borderRadius: 25 },
   overlayText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
   boxLabel: { backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: 10, padding: 2, textAlign: 'center', position: 'absolute', bottom: -20, left: 0, right: 0 },

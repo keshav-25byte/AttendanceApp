@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 
+/**
+ * Screen to allow teachers to schedule an Extra Class on the fly.
+ * Requires selecting a course, a start time, and one or more student groups.
+ */
 export default function ExtraClassScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -29,7 +33,7 @@ export default function ExtraClassScreen({ navigation }) {
       }
       setUser(user);
 
-      // Fetch teacher's courses and all groups in college
+      // Fetch teacher's profile to get their college_id
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('college_id')
@@ -39,6 +43,7 @@ export default function ExtraClassScreen({ navigation }) {
       if (profileError) throw profileError;
       const collegeId = profile.college_id;
       
+      // Fetch available courses for this college
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('id, name, course_code, college_id')
@@ -47,6 +52,7 @@ export default function ExtraClassScreen({ navigation }) {
       if (courseError) throw courseError;
       setCourses(courseData);
 
+      // Fetch student groups (sections/batches)
       const { data: groupData, error: groupError } = await supabase
         .from('student_groups')
         .select('id, group_name')
@@ -79,16 +85,16 @@ export default function ExtraClassScreen({ navigation }) {
     try {
       setSubmitting(true);
       
-      // 1. Create the schedule
+      // Step 1: Create the schedule entry in 'schedules' table
       const { data: newSchedule, error: scheduleError } = await supabase
         .from('schedules')
         .insert({
-          college_id: courses.find(c => c.id === selectedCourse)?.college_id, // Get college_id from course
+          college_id: courses.find(c => c.id === selectedCourse)?.college_id, 
           course_id: selectedCourse,
           teacher_profile_id: user.id,
-          day_of_week: new Date().getDay(), // Set to today
+          day_of_week: new Date().getDay(), // Automatically set to today
           start_time: startTime,
-          end_time: startTime, // Start and end time are same for extra class
+          end_time: startTime, // Placeholder (extra classes might not have fixed duration)
           is_extra_class: true
         })
         .select('id')
@@ -96,7 +102,7 @@ export default function ExtraClassScreen({ navigation }) {
       
       if (scheduleError) throw scheduleError;
 
-      // 2. Link the groups
+      // Step 2: Link the selected groups to this new schedule
       const scheduleGroupLinks = selectedGroups.map(gid => ({
         schedule_id: newSchedule.id,
         group_id: gid
@@ -145,15 +151,14 @@ export default function ExtraClassScreen({ navigation }) {
             <Picker.Item label="Select a course..." value={null} color="#9ca3af" />
             {courses.map(course => (
               <Picker.Item key={course.id} label={`${course.name} (${course.course_code})`} value={course.id}  />
-
             ))}
           </Picker>
         </View>
         {selectedCourse && (
-    <Text style={styles.helperText}>
-        Selected: {courses.find(c => c.id === selectedCourse)?.name}
-    </Text>
-)}
+            <Text style={styles.helperText}>
+                Selected: {courses.find(c => c.id === selectedCourse)?.name}
+            </Text>
+        )}
 
         <Text style={styles.label}>Start Time (HH:MM)</Text>
         <TextInput
@@ -203,7 +208,6 @@ const styles = StyleSheet.create({
   form: { flex: 1, padding: 20 },
   label: { fontSize: 16, fontWeight: '500', color: '#334155', marginBottom: 10, marginTop: 15 },
   
-  // --- NEW PICKER STYLES ---
   pickerWrapper: { 
       backgroundColor: 'white', 
       borderRadius: 10, 
@@ -224,14 +228,12 @@ const styles = StyleSheet.create({
       marginLeft: 5,
       fontWeight: '600'
   },
-  // -------------------------
 
   input: { 
     backgroundColor: 'white', padding: 15, borderRadius: 10, 
     fontSize: 16, color: '#111827', borderWidth: 1, borderColor: '#cbd5e1'
   },
   
-  // --- IMPROVED GROUP CHIPS ---
   groupContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 40 }, 
   groupChip: {
     paddingVertical: 10, paddingHorizontal: 15,
@@ -241,7 +243,6 @@ const styles = StyleSheet.create({
   groupChipSelected: { backgroundColor: '#005CAB', borderColor: '#005CAB' },
   groupText: { color: '#334155', fontWeight: '500' },
   groupTextSelected: { color: 'white', fontWeight: '500' },
-  // ----------------------------
 
   footer: { padding: 20, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#e2e8f0' },
   button: { padding: 16, borderRadius: 12, alignItems: 'center', backgroundColor: '#10b981' },
