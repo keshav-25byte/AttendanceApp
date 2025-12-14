@@ -3,17 +3,22 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, Alert
 import Modal from 'react-native-modal';
 import { supabase } from '../lib/supabase';
 
+/**
+ * Screen to display the teacher's schedule for the current day.
+ * Handles fetching classes, checking attendance submission status,
+ * and navigating to Camera or Manual Edit screens.
+ */
 export default function ClassListScreen({ navigation }) {
   const [lectures, setLectures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   
-  // State for password modal
+  // State for password re-entry modal (security feature for editing)
   const [isModalVisible, setModalVisible] = useState(false);
   const [password, setPassword] = useState('');
   const [selectedLecture, setSelectedLecture] = useState(null);
 
-  // This hook runs when the screen is focused
+  // Refresh data whenever the screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchUserDataAndLectures();
@@ -21,6 +26,10 @@ export default function ClassListScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
+  /**
+   * Fetches the current user and their schedule for today.
+   * Also checks which schedules already have attendance marked.
+   */
   async function fetchUserDataAndLectures() {
     try {
       setLoading(true);
@@ -31,7 +40,9 @@ export default function ClassListScreen({ navigation }) {
       }
       setUser(user);
 
-      const today = new Date().getDay();
+      const today = new Date().getDay(); // 0 (Sun) - 6 (Sat)
+      
+      // Fetch all schedules for this teacher
       const { data, error } = await supabase
         .from('schedules')
         .select(`
@@ -44,13 +55,14 @@ export default function ClassListScreen({ navigation }) {
 
       if (error) throw error;
       
-      // --- FIX: Only show classes (regular OR extra) if they are for TODAY ---
+      // Filter for classes scheduled for TODAY only
       const filteredData = data.filter(lec => lec.day_of_week === today);
       
       if (filteredData.length > 0) {
         const scheduleIds = filteredData.map(s => s.id);
         const todayStr = new Date().toISOString().split('T')[0];
 
+        // Check attendance table to see if any records exist for these schedules today
         const { data: attendanceData } = await supabase
           .from('attendance')
           .select('schedule_id')
@@ -59,7 +71,7 @@ export default function ClassListScreen({ navigation }) {
         
         const submittedScheduleIds = new Set(attendanceData.map(a => a.schedule_id));
 
-        // Add 'isSubmitted' property to each lecture
+        // Mark each lecture as 'submitted' or not based on presence of records
         const lecturesWithStatus = filteredData.map(lecture => ({
           ...lecture,
           isSubmitted: submittedScheduleIds.has(lecture.id)
@@ -81,11 +93,18 @@ export default function ClassListScreen({ navigation }) {
     navigation.replace('Login');
   };
 
+  /**
+   * triggers the security modal before allowing manual edits
+   */
   const onManualEditPress = (lecture) => {
     setSelectedLecture(lecture);
     setModalVisible(true);
   };
 
+  /**
+   * Verifies the user's password before granting access to the Manual Edit screen.
+   * This prevents unauthorized changes to submitted attendance.
+   */
   const handlePasswordConfirm = async () => {
     if (!password || !user?.email) {
       Alert.alert('Error', 'Password cannot be empty');
@@ -153,6 +172,7 @@ export default function ClassListScreen({ navigation }) {
         onRefresh={fetchUserDataAndLectures}
       />
 
+      {/* Floating Action Button for Extra Class */}
       <TouchableOpacity 
         style={styles.fab} 
         onPress={() => navigation.navigate('ExtraClass')}
@@ -160,6 +180,7 @@ export default function ClassListScreen({ navigation }) {
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
+      {/* Password Confirmation Modal */}
       <Modal isVisible={isModalVisible} onBackdropPress={() => setModalVisible(false)}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Password Required</Text>
