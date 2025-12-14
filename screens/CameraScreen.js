@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../lib/supabase';
 
-// REPLACE WITH YOUR REAL SERVER URL
+
 const FACE_API_WS_URL = 'wss://ca.avinya.live'; 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

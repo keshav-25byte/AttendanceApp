@@ -8,6 +8,12 @@
     "scheme": "attendanceapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/logo(1).png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+      
+    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
